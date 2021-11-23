@@ -348,3 +348,24 @@ MigrationBackup/
 
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/
+
+# Extra files
+LIBCID.LIB
+Sample.dsp
+Sample.dsw
+Sample.sln
+Sample.vcproj
+Sample.vcxproj
+Sample.vcxproj.filters
+freeglut.h
+freeglut.lib
+freeglut_ext.h
+freeglut_std.h
+glew.h
+glew32.lib
+glut.h
+libcd.lib
+lighting.frag
+lighting.vert
+sample.o
+
