@@ -648,6 +648,35 @@ GLSLProgram::SetUniformVariable( char* name, float vals[3] )
 };
 
 
+// I ADDED THIS MAYBE DELETE WHO KNOWS WE'LL SEEEEEEEEEEEEEEEEEEE
+/*
+void
+GLSLProgram::SetUniformVariable(char* name, float vals[3])
+{
+	int loc;
+	fprintf(stderr, "Found a 3-element array\n");
+
+	if ((loc = GetUniformLocation(name)) >= 0)
+	{
+		this->Use();
+		glUniform3fv(loc, 3, vals);
+	}
+};
+
+void
+GLSLProgram::SetUniformVariable(char* name, float val0, float val1, float val2, float val3)
+{
+	int loc;
+	if ((loc = GetUniformLocation(name)) >= 0)
+	{
+		this->Use();
+		glUniform4f(loc, val0, val1, val2, val3);
+	}
+};
+*/
+ // END MY SHIT AHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH
+
+
 #ifdef VEC3_H
 void
 GLSLProgram::SetUniformVariable( char* name, Vec3& v );

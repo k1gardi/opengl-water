@@ -257,6 +257,8 @@ float	Xrot, Yrot;				// rotation angles in degrees
 GLuint		   WaterSurface;
 point		   Pt;
 GLSLProgram*   Pattern;
+bool		   doVertShader;
+bool		   doFragShader;
 int			   WhichShader;
 float		   Undulate;
 
@@ -474,20 +476,24 @@ Display( )
 
 	// Lighting
 	glEnable(GL_LIGHTING);
-	SetMaterial(1., 1., 0., 30.);
-	float uKa = 0.4;
-	float uKd = 0.6;
-	float uKs = 0.0;
+	SetMaterial(0., 1., 1., 30.);
 
 	// draw the water:
 
 	Pattern->Use();
 
+	// Turn shaders on or off
 	Radius = 0;
-	Undulate = Time;
-	Radius = Time;
-
-	Pattern->SetUniformVariable("uColor", 1., 1., 0.);
+	if (doVertShader)
+	{
+		Undulate = Time;
+	}
+	if (doFragShader)
+	{
+		Radius = Time;
+	}
+	/*
+	Pattern->SetUniformVariable("uColor", 0., 1., 1.);
 	Pattern->SetUniformVariable("uSpecularColor", 0., 0., 0.);
 	Pattern->SetUniformVariable("uShininess", (float)40.);
 	Pattern->SetUniformVariable("uKa", uKa);
@@ -498,9 +504,61 @@ Display( )
 	Pattern->SetUniformVariable("uRadius", Radius);
 	Pattern->SetUniformVariable("uS0", S0);
 	Pattern->SetUniformVariable("uT0", T0);
+	*/
+	/*
+	Time *= 10.;
+	float uTimeScale = 2.0;
+	float uAm0 = 0.3;
+	float uKm0 = 1.0;
+	float uGamma0 = 0.0;
+
+	float uAm1 = 0.0;
+	float uKm1 = 2.0;
+	float uPhiM1 = 0.0;
+	float uGamma1 = 0.0;
+
+	float uLightX = 0.0;
+	float uLightY = 10.0;
+	float uLightZ = -20.0;
+
+	float uKa = 0.1;
+	float uKd = 0.6;
+	float uKs = 0.3;
+	float NoiseFreq = 0.5;
+	float NoiseAmp = 0.5;
+	
+	// Vert shader variables
+	Pattern->SetUniformVariable("uTimeScale", uTimeScale);
+	Pattern->SetUniformVariable("uAm0", uAm0);
+	Pattern->SetUniformVariable("uKm0", uKm0);
+	Pattern->SetUniformVariable("uGamma0", uGamma0);
+
+	Pattern->SetUniformVariable("uAm1", uAm1);
+	Pattern->SetUniformVariable("uKm1", uKm1);
+	Pattern->SetUniformVariable("uPhiM1", uPhiM1);
+	Pattern->SetUniformVariable("uGamma1", uGamma1);
+
+	Pattern->SetUniformVariable("Timer", Time);
+
+	Pattern->SetUniformVariable("uLightX", uLightX);
+	Pattern->SetUniformVariable("uLightY", uLightY);
+	Pattern->SetUniformVariable("uLightZ", uLightZ);
+	float uColor[] = { .1, 1., .8, 1. };
+	// Frag shader variables
+	Pattern->SetUniformVariable("uColor", .1, 1., .8);
+	Pattern->SetUniformVariable("uShininess", (float)40.);
+	Pattern->SetUniformVariable("uKa", uKa);
+	Pattern->SetUniformVariable("uKd", uKd);
+	Pattern->SetUniformVariable("uKs", uKs);
+
+	Pattern->SetUniformVariable("Noise3", uKs);
+	Pattern->SetUniformVariable("uNoiseAmp", NoiseAmp);
+	Pattern->SetUniformVariable("uNoiseFreq", NoiseFreq);
+	*/
+
 	glCallList( WaterSurface );
 
-
+	Pattern->Use(0);
 
 
 
@@ -839,7 +897,8 @@ InitGraphics( )
 
 	// Set up shader program
 	Pattern = new GLSLProgram();
-	bool valid = Pattern->Create("pattern.vert", "pattern.frag");
+	// bool valid = Pattern->Create("pattern.vert", "pattern.frag");
+	bool valid = Pattern->Create("gerstner.vert", "gerstner.frag");
 	if (!valid)
 	{
 		fprintf(stderr, "Shader cannot be created!\n");
@@ -869,17 +928,20 @@ InitLists( )
 	// create the object:
 	float offest = 2.5;
 	float x, z;
+	int even = 1;
 	WaterSurface = glGenLists( 1 );
 	glNewList( WaterSurface, GL_COMPILE);
 		
-		glColor3f(0., 0., 1.);
+		glColor3f(0., 1., 1.);
 		for (float i = -offest; i < WIDTH - offest; i += .06)
 		{
 			glBegin(GL_TRIANGLE_STRIP);
 			for (float j = -offest; j < LENGTH - offest; j += .06)
 			{	
-				x = j;
-				z = i + .05;
+				//check even row
+					x = j;
+					z = i;
+				
 				Pt = {
 					x,
 					0.,
@@ -892,8 +954,10 @@ InitLists( )
 				};
 				DrawPoint(&Pt);
 
-				x = j;
-				z = i;
+				//check even row
+					x = j;
+					z = i + .06;
+
 				Pt = {
 					x,
 					0.,
@@ -906,10 +970,11 @@ InitLists( )
 				};
 				DrawPoint(&Pt);
 			}
+			glEnd();
+
 		}
 			
 
-		glEnd( );
 
 	glEndList( );
 
@@ -949,6 +1014,14 @@ Keyboard( unsigned char c, int x, int y )
 		case ESCAPE:
 			DoMainMenu( QUIT );	// will not return here
 			break;				// happy compiler
+
+		case 'v':
+			doVertShader = !doVertShader;
+			break;
+
+		case 'f':
+			doFragShader = !doFragShader;
+			break;
 
 		default:
 			fprintf( stderr, "Don't know what to do with keyboard hit: '%c' (0x%0x)\n", c, c );

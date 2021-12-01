@@ -23,7 +23,7 @@ main( )
 
 	// Deformation **********************************************************
 
-	vec3 myColor = vec3( 1., 0., 0. );
+	vec3 myColor = vec3( 0., .5, 1. );
 	if( pow((vST.s - .5), 2) + pow((vST.t - .5), 2) <= pow(uRadius, 2))
 	{
 		myColor = vec3( 0., 1., 0. );
