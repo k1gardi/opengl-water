@@ -1,4 +1,8 @@
 #version 330 compatibility
+out vec3  vRefractVector;
+out vec3  vReflectVector;
+
+uniform float  uEta;
 
 uniform float uTimeScale;
 //uniform float uG;
@@ -18,12 +22,15 @@ uniform float Timer;
 uniform float uLightX, uLightY, uLightZ;
 vec3 eyeLightPosition = vec3(  uLightX,  uLightY,  uLightZ );
 
+
 out vec3 vMC;
 out vec3 vEs;
 out vec3 vLs;
 out vec3 vNs;
+
 const float PI = 3.14159265;
 const float G  = 1.;
+const float Y0 = 1.;
 
 void
 main( )
@@ -77,14 +84,21 @@ main( )
 
 	vec3 newVertex = vec3( newx, newy, newz );
 	vMC = newVertex;
+
 	vec3 ta = vec3( dxda, dyda, dzda );
 	vec3 tb = vec3( dxdb, dydb, dzdb );
-	vNs = normalize( gl_NormalMatrix*cross( tb, ta ) );
-	// surface normal vector
+	vNs = normalize( gl_NormalMatrix*cross( tb, ta ) );			// surface normal vector
 	vec4 ECposition = gl_ModelViewMatrix * vec4( newVertex, 1. );
-	vLs = normalize( eyeLightPosition - ECposition.xyz ); // vector from the point
-	// to the light position
-	vEs = normalize( vec3( 0., 0., 0. ) - ECposition.xyz ); // vector from the point
-	// to the eye position 
+	vLs = normalize( eyeLightPosition - ECposition.xyz );		// vector from the point to the light position
+	vEs = normalize( vec3( 0., 0., 0. ) - ECposition.xyz );		// vector from the point to the eye position 
+
+
+
+	vec3 eyeDir = ECposition.xyz - vec3(0.,0.,0.);						// vector from eye to pt
+	vec3 normal = normalize( gl_NormalMatrix * gl_Normal );			// Maybe this??
+	vRefractVector = refract( eyeDir, vNs, uEta );
+	vReflectVector = reflect( eyeDir, vNs );
+
+	//gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
 	gl_Position = gl_ModelViewProjectionMatrix * vec4( newVertex, 1.);
 }

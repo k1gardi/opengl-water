@@ -1,11 +1,42 @@
 ##OpenGL GLIB
 Perspective 70
-LookAt 0 0 7  0 0 0  0 1 0
+LookAt 0 0 5  0 0 0  0 1 0
 Timer 60
+
+Vertex texture.vert
+Fragment texture.frag
+Program Texture  uTexUnit 6
+
+Texture2D  6  nvposx.bmp
+QuadYZ 5. 5. 10 10
+
+Texture2D  6  nvnegx.bmp
+QuadYZ -5. 5. 10 10
+
+
+Texture2D  6  nvposy.bmp
+QuadXZ 5. 5. 10 10
+
+Texture2D  6  nvnegy.bmp
+QuadXZ -5. 5. 10 10
+
+
+Texture2D  6  nvposz.bmp
+QuadXY 5. 5. 10 10
+
+Texture2D  6  nvnegz.bmp
+QuadXY -5. 5. 10 10
+
+CubeMap 5 nvposx.bmp nvnegx.bmp  nvposy.bmp nvnegy.bmp  nvposz.bmp nvnegz.bmp
+
+CubeMap 6 nvposx.bmp nvnegx.bmp  nvposy.bmp nvnegy.bmp  nvposz.bmp nvnegz.bmp
 
 Vertex   gerstner.vert
 Fragment gerstner.frag
 Program  Gerstner   \
+uEta <0. 1.4 4.0>  \
+	uEta <0. 1.4 4.0>  \
+	uMix <0. 0. 1.> \
 	uTimeScale <1. 2. 100.> \
 	\
 	uAm0 <0. .2 1.> \
@@ -27,6 +58,8 @@ Program  Gerstner   \
 	uColor {.1 1. .8 1.} \
 	uNoiseAmp <0. 0. 1.> \
 	uNoiseFreq <.1 .1 2.> \
+	uReflectUnit 5       \
+    uRefractUnit 6       \
 	\
 
 QuadXZ -0.2  3.  300  300

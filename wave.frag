@@ -1,18 +1,25 @@
 #version 330 compatibility
+in vec3  vReflectVector;
+in vec3  vRefractVector;
+
+uniform float  uMix;
+uniform samplerCube uReflectUnit;
+uniform samplerCube uRefractUnit;
+const vec4 WHITE = vec4( 1.,1.,.8,1. );
 
 in vec3 vMC;
 in vec3 vNs;
 in vec3 vLs;
 in vec3 vEs;
 
+uniform float uEta;
+
 uniform float  uKa, uKd, uKs;
-uniform vec4   uColor;
+// uniform vec4   uColor;
 uniform float  uShininess;
 uniform sampler3D Noise3;
 uniform float uNoiseAmp;
 uniform float uNoiseFreq;
-
-const vec4 WHITE = { 1., 1., .8, 1. };
 
 vec3
 RotateNormal( float angx, float angy, vec3 n )
@@ -40,7 +47,7 @@ RotateNormal( float angx, float angy, vec3 n )
 void
 main( )
 {
-	// vec4 uColor = { .1, 1., .8, 1. };
+	vec4 uColor = vec4( .1, 1., .8, 1.);
 	vec4 nvx = texture3D( Noise3, uNoiseFreq*vMC );
 	vec4 nvy = texture3D( Noise3, uNoiseFreq*vec3(vMC.xy,vMC.z+0.5) );
 
@@ -73,26 +80,20 @@ main( )
 		s = pow( max( dot(eye,ref),0. ), uShininess );
 	}
 	vec4 specular = uKs * s * WHITE;
-	gl_FragColor = vec4( ambient.rgb + diffuse.rgb + specular.rgb, 1. );
+	// gl_FragColor = vec4( ambient.rgb + diffuse.rgb + specular.rgb, 1. );
 
-/*
-	vec3 Normal		= normalize(vNs);
-	vec3 Light		= normalize(vLs);
-	vec3 Eye        = normalize(vEs);
 
-	vec4 ambient = uKa * uColor;
+	vec4 mixColor = vec4( ambient.rgb + diffuse.rgb + specular.rgb, 1. );
 
-	float d = max( dot(Normal,Light), 0. );       // only do diffuse if the light can see the point
-	vec4 diffuse = uKd * d * uColor;
 
-	float s = 0.;
-	if( dot(Normal,Light) > 0. )				  // only do specular if the light can see the point
-	{
-		vec3 ref = normalize(  reflect( -Light, Normal )  );
-		s = pow( max( dot(Eye,ref),0. ), uShininess );
-	}
-	vec4 specular = uKs * s * WHITE;
-	gl_FragColor = vec4( ambient.rgb + diffuse.rgb + specular.rgb,  1. );
-*/
 
+
+	//vec4 newcolor = textureCube( uReflectUnit, vReflectVector );
+	//gl_FragColor = vec4( newcolor.rgb, 1. );
+
+	vec4 refractcolor = textureCube( uRefractUnit, vRefractVector );
+	vec4 reflectcolor = textureCube( uReflectUnit,  vReflectVector );
+	refractcolor = mix( refractcolor, WHITE, .40 );
+
+	gl_FragColor = vec4( mix( mixColor, reflectcolor, .1 ).rgb, 1. );
 }

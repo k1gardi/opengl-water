@@ -368,4 +368,5 @@ libcd.lib
 lighting.frag
 lighting.vert
 sample.o
+glm/
 

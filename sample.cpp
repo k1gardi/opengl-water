@@ -16,6 +16,9 @@
 #include "glut.h"
 #include "glslprogram.h"
 
+#define    GLM_FORCE_RADIANS 
+#include <glm/glm.hpp>
+#include  <glm/gtc/matrix_transform.hpp>
 
 //	This is a sample OpenGL / GLUT program
 //
@@ -184,6 +187,7 @@ const GLfloat Colors[ ][3] =
 };
 
 int		NumLngs, NumLats;
+struct point* Pts;
 
 struct point
 {
@@ -192,10 +196,10 @@ struct point
 	float s, t;				// texture coords
 };
 
-/*
+
 inline
 struct point*
-	PtsPointer(int lat, int lng)
+PtsPointer(int lat, int lng)
 {
 	if (lat < 0)	lat += (NumLats - 1);
 	if (lng < 0)	lng += (NumLngs - 0);
@@ -203,7 +207,7 @@ struct point*
 	if (lng > NumLngs - 1)	lng -= (NumLngs - 0);
 	return &Pts[NumLngs * lat + lng];
 }
-*/
+
 
 inline
 void
@@ -254,23 +258,28 @@ int		WhichProjection;		// ORTHO or PERSP
 int		Xmouse, Ymouse;			// mouse values
 float	Xrot, Yrot;				// rotation angles in degrees
 
-GLuint		   WaterSurface;
-point		   Pt;
 GLSLProgram*   Pattern;
+GLuint		   WaterSurface;
+GLuint		   CubeMap;
+GLuint		   NoiseTexture;
+point		   Pt;
+
 bool		   doVertShader;
 bool		   doFragShader;
 int			   WhichShader;
-float		   Undulate;
 
-
-
-float		  Radius;			// Radius for frag shader pattern
-float		  S0 = 0.5;			// frag shader s at center
-float		  T0 = 0.5;			// frag shader t at center
 bool		  VertexOn = false;
 bool		  FragOn = false;
 
-
+char* FaceFiles[]
+{
+	"nvposx.bmp",
+	"nvnegx.bmp",
+	"nvposy.bmp",
+	"nvnegy.bmp",
+	"nvposz.bmp",
+	"nvnegz.bmp"
+};
 
 
 // function prototypes:
@@ -299,12 +308,14 @@ void	Reset( );
 void	Resize( int, int );
 void	Visibility( int );
 void	SetMaterial(float r, float g, float b, float shininess);
+void	OsuSphere(float, int, int);
 
 void			Axes( float );
 unsigned char *	BmpToTexture( char *, int *, int * );
 void			HsvRgb( float[3], float [3] );
 int				ReadInt( FILE * );
 short			ReadShort( FILE * );
+unsigned char* ReadTexture3D(char*, int*, int*, int*);
 
 void			Cross(float[3], float[3], float[3]);
 float			Dot(float [3], float [3]);
@@ -478,56 +489,52 @@ Display( )
 	glEnable(GL_LIGHTING);
 	SetMaterial(0., 1., 1., 30.);
 
-	// draw the water:
+	// Set cubemap vars
+	int uReflectUnit = 5;
+	int uRefractUnit = 6;
+	float uAd = 0.1f;
+	float uBd = 0.1f;
+	float uEta = 1.4f;
+	float uTol = 0.f;
+	float uMix = 0.4f;
 
-	Pattern->Use();
+	// Set wave vars
+	float uTimeScale = 10.0; //36
+	float uAm0 = 0.4;
+	float uKm0 = 1.4;
+	float uGamma0 = -.2;
 
-	// Turn shaders on or off
-	Radius = 0;
-	if (doVertShader)
-	{
-		Undulate = Time;
-	}
-	if (doFragShader)
-	{
-		Radius = Time;
-	}
-	/*
-	Pattern->SetUniformVariable("uColor", 0., 1., 1.);
-	Pattern->SetUniformVariable("uSpecularColor", 0., 0., 0.);
-	Pattern->SetUniformVariable("uShininess", (float)40.);
-	Pattern->SetUniformVariable("uKa", uKa);
-	Pattern->SetUniformVariable("uKd", uKd);
-	Pattern->SetUniformVariable("uKs", uKs);
-
-	Pattern->SetUniformVariable("uUndulate", Undulate);
-	Pattern->SetUniformVariable("uRadius", Radius);
-	Pattern->SetUniformVariable("uS0", S0);
-	Pattern->SetUniformVariable("uT0", T0);
-	*/
-	/*
-	Time *= 10.;
-	float uTimeScale = 2.0;
-	float uAm0 = 0.3;
-	float uKm0 = 1.0;
-	float uGamma0 = 0.0;
-
-	float uAm1 = 0.0;
-	float uKm1 = 2.0;
-	float uPhiM1 = 0.0;
-	float uGamma1 = 0.0;
+	float uAm1 = 0.175;
+	float uKm1 = 2.0; //1.38
+	float uPhiM1 = 2.7;
+	float uGamma1 = -0.78;
 
 	float uLightX = 0.0;
 	float uLightY = 10.0;
-	float uLightZ = -20.0;
+	float uLightZ = -17.0;
 
 	float uKa = 0.1;
 	float uKd = 0.6;
 	float uKs = 0.3;
 	float NoiseFreq = 0.5;
 	float NoiseAmp = 0.5;
-	
-	// Vert shader variables
+
+
+	// enable the shader:
+	Pattern->Use();
+
+	// Activate noise texture
+	glActiveTexture(GL_TEXTURE3);
+	glBindTexture(GL_TEXTURE_3D, NoiseTexture);
+	Pattern->SetUniformVariable("uTexUnit", 3);
+
+	// Active cubemap texture
+	glActiveTexture(GL_TEXTURE0 + uReflectUnit);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, CubeMap);
+	glActiveTexture(GL_TEXTURE0 + uRefractUnit);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, CubeMap);
+
+	// wave vars **********************************************************
 	Pattern->SetUniformVariable("uTimeScale", uTimeScale);
 	Pattern->SetUniformVariable("uAm0", uAm0);
 	Pattern->SetUniformVariable("uKm0", uKm0);
@@ -543,9 +550,7 @@ Display( )
 	Pattern->SetUniformVariable("uLightX", uLightX);
 	Pattern->SetUniformVariable("uLightY", uLightY);
 	Pattern->SetUniformVariable("uLightZ", uLightZ);
-	float uColor[] = { .1, 1., .8, 1. };
-	// Frag shader variables
-	Pattern->SetUniformVariable("uColor", .1, 1., .8);
+
 	Pattern->SetUniformVariable("uShininess", (float)40.);
 	Pattern->SetUniformVariable("uKa", uKa);
 	Pattern->SetUniformVariable("uKd", uKd);
@@ -554,12 +559,23 @@ Display( )
 	Pattern->SetUniformVariable("Noise3", uKs);
 	Pattern->SetUniformVariable("uNoiseAmp", NoiseAmp);
 	Pattern->SetUniformVariable("uNoiseFreq", NoiseFreq);
-	*/
+	// ********************************************************************
 
-	glCallList( WaterSurface );
+	// ref vars
+	Pattern->SetUniformVariable("uReflectUnit", uReflectUnit);
+	Pattern->SetUniformVariable("uRefractUnit", uRefractUnit);
+	Pattern->SetUniformVariable("uMix", uMix);
+	Pattern->SetUniformVariable("uEta", uEta);
 
+	Pattern->SetUniformVariable("uKa", 0.1f);
+	Pattern->SetUniformVariable("uKd", 0.6f);
+	Pattern->SetUniformVariable("uKs", 0.3f);
+	Pattern->SetUniformVariable("uSpecularColor", 1.f, 1.f, 1.f);
+	Pattern->SetUniformVariable("uShininess", 8.f);
+
+	// glCallList(SphereList);
+	glCallList(WaterSurface);
 	Pattern->Use(0);
-
 
 
 #ifdef DEMO_Z_FIGHTING
@@ -895,20 +911,58 @@ InitGraphics( )
 	fprintf( stderr, "Status: Using GLEW %s\n", glewGetString(GLEW_VERSION));
 #endif
 
-	// Set up shader program
+	// ***************************************************
+	// Read noise texture
+	glGenTextures(1, &NoiseTexture);
+	int nums, numt, nump;
+
+	unsigned char* texture = ReadTexture3D("noise3d.064.tex", &nums, &numt, &nump);
+	// if(texture == NULL) { ... }
+	glBindTexture(GL_TEXTURE_3D, NoiseTexture);
+	glTexParameterf(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameterf(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_REPEAT);
+	glTexParameterf(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameterf(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, nums, numt, nump, 0, GL_RGBA,
+		GL_UNSIGNED_BYTE, texture);
+
+	// ***************************************************
+	// Create shader program
 	Pattern = new GLSLProgram();
-	// bool valid = Pattern->Create("pattern.vert", "pattern.frag");
-	bool valid = Pattern->Create("gerstner.vert", "gerstner.frag");
+	bool valid = Pattern->Create("wave.vert", "wave.frag");
 	if (!valid)
 	{
 		fprintf(stderr, "Shader cannot be created!\n");
-		DoMainMenu(QUIT);
 	}
 	else
 	{
 		fprintf(stderr, "Shader created.\n");
 	}
 	Pattern->SetVerbose(false);
+
+	// ***************************************************
+	// Read cubemap texture
+	glGenTextures(1, &CubeMap);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, CubeMap);
+	glTexParameterf(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameterf(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameterf(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_REPEAT);
+	glTexParameterf(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameterf(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	for (int file = 0; file < 6; file++)
+	{
+		int nums, numt;
+
+		unsigned char* texture2d = BmpToTexture(FaceFiles[file], &nums, &numt);
+		if (texture2d == NULL)
+			fprintf(stderr, "Could not open BMP 2D texture '%s'", FaceFiles[file]);
+		else fprintf(stderr, "BMP 2D texture '%s' read -- nums = %d, numt = %d\n", FaceFiles[file], nums, numt);
+		glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + file, 0, 3, nums, numt, 0,
+			GL_RGB, GL_UNSIGNED_BYTE, texture2d);
+		delete[] texture2d;
+	}
+
 }
 
 
@@ -1672,4 +1726,128 @@ SetMaterial(float r, float g, float b, float shininess)
 	glMaterialfv(GL_FRONT, GL_DIFFUSE, Array3(r, g, b));
 	glMaterialfv(GL_FRONT, GL_SPECULAR, MulArray3(.8f, White));
 	glMaterialf(GL_FRONT, GL_SHININESS, shininess);
+}
+
+void
+OsuSphere( float radius, int slices, int stacks )
+{
+	// set the globals:
+
+	NumLngs = slices;
+	NumLats = stacks;
+	if( NumLngs < 3 )
+		NumLngs = 3;
+	if( NumLats < 3 )
+		NumLats = 3;
+
+	// allocate the point data structure:
+
+	Pts = new struct point[ NumLngs * NumLats ];
+
+	// fill the Pts structure:
+
+	for( int ilat = 0; ilat < NumLats; ilat++ )
+	{
+		float lat = -M_PI/2.  +  M_PI * (float)ilat / (float)(NumLats-1);	// ilat=0/lat=0. is the south pole
+											// ilat=NumLats-1, lat=+M_PI/2. is the north pole
+		float xz = cosf( lat );
+		float  y = sinf( lat );
+		for( int ilng = 0; ilng < NumLngs; ilng++ )				// ilng=0, lng=-M_PI and
+											// ilng=NumLngs-1, lng=+M_PI are the same meridian
+		{
+			float lng = -M_PI  +  2. * M_PI * (float)ilng / (float)(NumLngs-1);
+			float x =  xz * cosf( lng );
+			float z = -xz * sinf( lng );
+			struct point* p = PtsPointer( ilat, ilng );
+			p->x  = radius * x;
+			p->y  = radius * y;
+			p->z  = radius * z;
+			p->nx = x;
+			p->ny = y;
+			p->nz = z;
+			p->s = ( lng + M_PI    ) / ( 2.*M_PI );
+			p->t = ( lat + M_PI/2. ) / M_PI;
+		}
+	}
+
+	struct point top, bot;		// top, bottom points
+
+	top.x =  0.;		top.y  = radius;	top.z = 0.;
+	top.nx = 0.;		top.ny = 1.;		top.nz = 0.;
+	top.s  = 0.;		top.t  = 1.;
+
+	bot.x =  0.;		bot.y  = -radius;	bot.z = 0.;
+	bot.nx = 0.;		bot.ny = -1.;		bot.nz = 0.;
+	bot.s  = 0.;		bot.t  =  0.;
+
+	// connect the north pole to the latitude NumLats-2:
+
+	glBegin(GL_TRIANGLE_STRIP);
+	for (int ilng = 0; ilng < NumLngs; ilng++)
+	{
+		float lng = -M_PI + 2. * M_PI * (float)ilng / (float)(NumLngs - 1);
+		top.s = (lng + M_PI) / (2. * M_PI);
+		DrawPoint(&top);
+		struct point* p = PtsPointer(NumLats - 2, ilng);	// ilat=NumLats-1 is the north pole
+		DrawPoint(p);
+	}
+	glEnd();
+
+	// connect the south pole to the latitude 1:
+
+	glBegin( GL_TRIANGLE_STRIP );
+	for (int ilng = NumLngs - 1; ilng >= 0; ilng--)
+	{
+		float lng = -M_PI + 2. * M_PI * (float)ilng / (float)(NumLngs - 1);
+		bot.s = (lng + M_PI) / (2. * M_PI);
+		DrawPoint(&bot);
+		struct point* p = PtsPointer(1, ilng);					// ilat=0 is the south pole
+		DrawPoint(p);
+	}
+	glEnd();
+
+	// connect the horizontal strips:
+
+	for( int ilat = 2; ilat < NumLats-1; ilat++ )
+	{
+		struct point* p;
+		glBegin(GL_TRIANGLE_STRIP);
+		for( int ilng = 0; ilng < NumLngs; ilng++ )
+		{
+			p = PtsPointer( ilat, ilng );
+			DrawPoint( p );
+			p = PtsPointer( ilat-1, ilng );
+			DrawPoint( p );
+		}
+		glEnd();
+	}
+
+	// clean-up:
+
+	delete [ ] Pts;
+	Pts = NULL;
+}
+
+unsigned char*
+ReadTexture3D(char* filename, int* width, int* height, int* depth)
+{
+	FILE* fp = fopen(filename, "rb");
+
+	if (fp == NULL)
+		return NULL;
+	int nums, numt, nump;
+	fread(&nums, 4, 1, fp);
+
+	fread(&numt, 4, 1, fp);
+
+	fread(&nump, 4, 1, fp);
+	*width = nums;
+	*height = numt;
+
+	*depth = nump;
+	unsigned char* texture = new unsigned char[4 * nums * numt * nump];
+	fread(texture, 4 * nums * numt * nump, 1, fp);
+	fclose(fp);
+
+	return texture;
 }
