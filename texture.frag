@@ -1,8 +1,11 @@
 #version 330 compatibility
-uniform sampler2D uTexUnit;
+uniform samplerCube uTexUnit;
 
-in vec2 vST;
+in  vec3   vNormal;
 
-void main () {
-    gl_FragColor = vec4(texture2D(uTexUnit, vST).rgb, 1.);
+void
+main( )
+{
+	vec4 newcolor = textureCube( uTexUnit, vNormal );
+	gl_FragColor = vec4( newcolor.rgb, 1. );
 }

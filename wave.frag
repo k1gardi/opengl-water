@@ -15,7 +15,6 @@ in vec3 vEs;
 uniform float uEta;
 
 uniform float  uKa, uKd, uKs;
-// uniform vec4   uColor;
 uniform float  uShininess;
 uniform sampler3D Noise3;
 uniform float uNoiseAmp;
@@ -95,5 +94,5 @@ main( )
 	vec4 reflectcolor = textureCube( uReflectUnit,  vReflectVector );
 	refractcolor = mix( refractcolor, WHITE, .40 );
 
-	gl_FragColor = vec4( mix( mixColor, reflectcolor, .1 ).rgb, 1. );
+	gl_FragColor = vec4( mix( mixColor, reflectcolor, 0.4 ).rgb, 1. );
 }

@@ -58,7 +58,7 @@ const int INIT_WINDOW_SIZE = { 600 };
 
 // size of the 3d box:
 
-const float BOXSIZE = { 2.f };
+const float BOXSIZE = { 15.f };
 
 // multiplication factors for input interaction:
 //  (these are known from previous experience)
@@ -259,7 +259,9 @@ int		Xmouse, Ymouse;			// mouse values
 float	Xrot, Yrot;				// rotation angles in degrees
 
 GLSLProgram*   Pattern;
+GLSLProgram*   MapShader;
 GLuint		   WaterSurface;
+GLuint		   ProjectionCube;
 GLuint		   CubeMap;
 GLuint		   NoiseTexture;
 point		   Pt;
@@ -273,12 +275,30 @@ bool		  FragOn = false;
 
 char* FaceFiles[]
 {
+	// Order is +/- x, +/- y, +/- z
+	/*
+
 	"nvposx.bmp",
 	"nvnegx.bmp",
 	"nvposy.bmp",
 	"nvnegy.bmp",
 	"nvposz.bmp",
 	"nvnegz.bmp"
+
+	"posx.bmp",
+	"negx.bmp",
+	"posy.bmp",
+	"negy.bmp",
+	"posz.bmp",
+	"negz.bmp"
+	*/
+	"stars.bmp",
+	"stars.bmp",
+	"moon.bmp",
+	"stars.bmp",
+	"stars.bmp",
+	"stars.bmp"
+
 };
 
 
@@ -485,6 +505,9 @@ Display( )
 
 	glEnable( GL_NORMALIZE );
 
+	// glCallList(ProjectionCube);
+
+
 	// Lighting
 	glEnable(GL_LIGHTING);
 	SetMaterial(0., 1., 1., 30.);
@@ -567,16 +590,23 @@ Display( )
 	Pattern->SetUniformVariable("uMix", uMix);
 	Pattern->SetUniformVariable("uEta", uEta);
 
-	Pattern->SetUniformVariable("uKa", 0.1f);
-	Pattern->SetUniformVariable("uKd", 0.6f);
-	Pattern->SetUniformVariable("uKs", 0.3f);
 	Pattern->SetUniformVariable("uSpecularColor", 1.f, 1.f, 1.f);
-	Pattern->SetUniformVariable("uShininess", 8.f);
 
-	// glCallList(SphereList);
 	glCallList(WaterSurface);
 	Pattern->Use(0);
 
+	// ********************************************************************
+	// Draw cube map
+	int uTexUnit = 6;
+
+	MapShader->Use();
+	glActiveTexture(GL_TEXTURE0 + uTexUnit);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, CubeMap);
+	MapShader->SetUniformVariable("uTexUnit", uTexUnit);
+
+	OsuSphere(8., 50, 50);
+	MapShader->Use(0);
+	// ********************************************************************
 
 #ifdef DEMO_Z_FIGHTING
 	if( DepthFightingOn != 0 )
@@ -928,7 +958,7 @@ InitGraphics( )
 		GL_UNSIGNED_BYTE, texture);
 
 	// ***************************************************
-	// Create shader program
+	// Create wave shader program
 	Pattern = new GLSLProgram();
 	bool valid = Pattern->Create("wave.vert", "wave.frag");
 	if (!valid)
@@ -940,6 +970,20 @@ InitGraphics( )
 		fprintf(stderr, "Shader created.\n");
 	}
 	Pattern->SetVerbose(false);
+
+	// ***************************************************
+	// // Create cubemap shader program
+	MapShader = new GLSLProgram();
+	bool mvalid = MapShader->Create("texture.vert", "texture.frag");
+	if (!mvalid)
+	{
+		fprintf(stderr, "Cubemap shader cannot be created!\n");
+	}
+	else
+	{
+		fprintf(stderr, "Cubemap shader created.\n");
+	}
+	MapShader->SetVerbose(false);
 
 	// ***************************************************
 	// Read cubemap texture
@@ -974,9 +1018,6 @@ InitGraphics( )
 void
 InitLists( )
 {
-	float dx = BOXSIZE / 2.f;
-	float dy = BOXSIZE / 2.f;
-	float dz = BOXSIZE / 2.f;
 	glutSetWindow( MainWindow );
 
 	// create the object:
@@ -992,10 +1033,8 @@ InitLists( )
 			glBegin(GL_TRIANGLE_STRIP);
 			for (float j = -offest; j < LENGTH - offest; j += .06)
 			{	
-				//check even row
-					x = j;
-					z = i;
-				
+				x = j;
+				z = i;
 				Pt = {
 					x,
 					0.,
@@ -1008,10 +1047,8 @@ InitLists( )
 				};
 				DrawPoint(&Pt);
 
-				//check even row
-					x = j;
-					z = i + .06;
-
+				x = j;
+				z = i + .06;
 				Pt = {
 					x,
 					0.,
@@ -1025,12 +1062,49 @@ InitLists( )
 				DrawPoint(&Pt);
 			}
 			glEnd();
-
 		}
-			
-
-
 	glEndList( );
+
+	// Create Box for cube map projection
+	float dx = BOXSIZE / 2.f;
+	float dy = BOXSIZE / 2.f;
+	float dz = BOXSIZE / 2.f;
+
+	ProjectionCube = glGenLists(1);
+	glNewList(ProjectionCube, GL_COMPILE);
+	glBegin(GL_QUADS);
+		glVertex3f(-dx, -dy, dz);
+		glVertex3f(dx, -dy, dz);
+		glVertex3f(dx, dy, dz);
+		glVertex3f(-dx, dy, dz);
+
+		glVertex3f(-dx, -dy, -dz);
+		glVertex3f(-dx, dy, -dz);
+		glVertex3f(dx, dy, -dz);
+		glVertex3f(dx, -dy, -dz);
+
+		glVertex3f(dx, -dy, dz);
+		glVertex3f(dx, -dy, -dz);
+		glVertex3f(dx, dy, -dz);
+		glVertex3f(dx, dy, dz);
+
+		glVertex3f(-dx, -dy, dz);
+		glVertex3f(-dx, dy, dz);
+		glVertex3f(-dx, dy, -dz);
+		glVertex3f(-dx, -dy, -dz);
+
+		glVertex3f(-dx, dy, dz);
+		glVertex3f(dx, dy, dz);
+		glVertex3f(dx, dy, -dz);
+		glVertex3f(-dx, dy, -dz);
+
+		glVertex3f(-dx, -dy, dz);
+		glVertex3f(-dx, -dy, -dz);
+		glVertex3f(dx, -dy, -dz);
+		glVertex3f(dx, -dy, dz);
+	glEnd();
+	glEndList();
+
 
 	// create the axes:
 

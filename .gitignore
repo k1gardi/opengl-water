@@ -369,4 +369,7 @@ lighting.frag
 lighting.vert
 sample.o
 glm/
+deliverables/
+cubemaps/
+
 
